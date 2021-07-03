@@ -2,29 +2,123 @@
 title: "Animal_rescue_by_LFB"
 author: "Mahmudur Rahman"
 date: "03/07/2021"
-output: html_document
+output:
+  html_document:
+    toc: true
+    # toc_float: true
+    # toc_depth: 2
+    # number_sections: true
+    # code_folding: hide
+    theme: readable
+
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+## Load libraries    
+```{r}
+library(tidyverse)
+library(patchwork)
+library(hrbrthemes)
+library(lubridate)
+library(here)
 ```
 
-## Including Plots
+##Import Data 
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2021-06-29')
+animal_rescue_raw <- tuesdata$animal_rescues
+```
+## Data Wrangling
+```{r}
+animal_rescue <- animal_rescue_raw %>%
+  mutate(
+    date_time_of_call = parse_date_time(date_time_of_call, "d/m/y H:M"),
+    animal_group_parent = recode(animal_group_parent,
+                                 cat = "Cat",
+                                 Budgie = "Bird",
+                                  Pigeon = "Bird" ),
+    animal_group_parent = case_when(str_detect(animal_group_parent,"Unknown")~ "Unknown",
+                                    TRUE ~ animal_group_parent),
+      mutate(across(where(is.character),factor)),
+    year = year(date_time_of_call))
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Grouped Bar Chart
+```{r}
+
+barchart_df <- dumbell_df <- animal_rescue %>% 
+  filter(year %in% c(2016,2020)) %>%
+  select(borough,year,animal_group_parent) %>% 
+  count(year,borough) %>% 
+  spread(year,n) %>% 
+  mutate(gap = `2016` - `2020`) %>% 
+  arrange(desc(gap)) %>% 
+  head(5) %>% 
+  pivot_longer(cols = c(`2016`,`2020`),
+               values_to = "total",
+               names_to = "year")
+ 
+# decrease in calls 
+  p1 <- barchart_df %>% 
+    ggplot(aes(borough,total, fill = as.factor(year)))+
+    geom_bar(stat="identity", position="dodge") +
+  geom_hline(yintercept = 0, size = 1, colour="#333333") +
+  scale_fill_manual(values = c("#FAAB18","#1380A1"))+
+    # scale_fill_brewer(palette = "Pastel2")+
+    theme_ipsum()+
+    theme(legend.position = "top",legend.title = element_blank())+
+    # coord_flip()+
+  labs(x= "\nTop 5 Boroughs",
+       y = "# of calls",
+       title = "These London Boroughs seem to be doing something right...  ",
+       subtitle = "Number of Animal Rescue calls to London Fire Service reduce between 2016-2020")+
+    theme(axis.title.x = element_text(face = "bold",size = 15,hjust = .5))+
+    ylim(c(0,40))
+  p1
+
+  
+  #increase in calls
+increase_in_call <- dumbell_df <- animal_rescue %>% 
+  filter(year %in% c(2016,2020)) %>%
+  select(borough,year,animal_group_parent) %>% 
+  count(year,borough) %>% 
+  spread(year,n) %>% 
+  mutate(gap = `2016` - `2020`) %>% 
+  arrange(gap) %>% 
+  head(5) %>% 
+  pivot_longer(cols = c(`2016`,`2020`),
+               values_to = "total",
+               names_to = "year")
+
+p2 <-increase_in_call %>% 
+    ggplot(aes(borough,total, fill = as.factor(year)))+
+    geom_bar(stat="identity", position="dodge") +
+  geom_hline(yintercept = 0, size = 1, colour="#333333") +
+  scale_fill_manual(values = c("#1380A1", "#FAAB18"))+
+    # scale_fill_brewer(palette = "Set2")+
+    theme_ipsum()+
+    theme(legend.position = "top",legend.title = element_blank())+
+  # coord_flip()+
+  labs(x= "\nTop 5 Boroughs",
+       y = "# of calls",
+       title = "Animals within these Boroughs need more help! ",
+       subtitle = "Number of Animal Rescue calls to London Fire Service significantly increased between 2016-2020 ")+
+       # caption = "Source:London.gov")+
+  theme(axis.title.x = element_text(face = "bold",size = 15,hjust = .5))
+       
+p2
+
+# Combine Plots
+plot_final <- 
+  p1 + p2 & 
+  plot_annotation(
+    title = "Top Boroughs with increase and decrease in calls for Animal Rescue",
+    caption = "Data: London.gov | Plot: Mahmudur Rahman"
+  )
+
+ggsave(here::here( "output", "week_27.png"), width = 12, height = 8, dpi = 150)
+```
