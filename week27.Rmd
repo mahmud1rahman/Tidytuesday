@@ -45,6 +45,8 @@ animal_rescue <- animal_rescue_raw %>%
       mutate(across(where(is.character),factor)),
     year = year(date_time_of_call))
 
+# readr::write_csv(animal_rescue, path = here::here("input","animal_rescue.csv"))
+
 ```
 
 ## Grouped Bar Chart
@@ -64,7 +66,7 @@ barchart_df <- dumbell_df <- animal_rescue %>%
  
 # decrease in calls 
   p1 <- barchart_df %>% 
-    ggplot(aes(borough,total, fill = as.factor(year)))+
+    ggplot(aes(fct_reorder(borough,total),total, fill = as.factor(year)))+
     geom_bar(stat="identity", position="dodge") +
   geom_hline(yintercept = 0, size = 1, colour="#333333") +
   scale_fill_manual(values = c("#FAAB18","#1380A1"))+
@@ -95,7 +97,7 @@ increase_in_call <- dumbell_df <- animal_rescue %>%
                names_to = "year")
 
 p2 <-increase_in_call %>% 
-    ggplot(aes(borough,total, fill = as.factor(year)))+
+    ggplot(aes(fct_reorder(borough,total),total, fill = as.factor(year)))+
     geom_bar(stat="identity", position="dodge") +
   geom_hline(yintercept = 0, size = 1, colour="#333333") +
   scale_fill_manual(values = c("#1380A1", "#FAAB18"))+
